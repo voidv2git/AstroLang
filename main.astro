@@ -1,8 +1,13 @@
+# Simple Hello World Script In AstroLang
+# python Astro.py main.astro
+
 using "std"
 
 void main
 {
-    std::printf >> "Hello World!\n"
+    RED = "\u001b[31m"
+    RESET = "\u001b[0m"
+    std::printf >> RED,"Hello World!",RESET
 }
 
-goto main
+goto >> main

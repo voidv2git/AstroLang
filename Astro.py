@@ -1,4 +1,6 @@
 import sys
+import time
+import codecs
 
 def Look():							
 	global pc						
@@ -97,20 +99,18 @@ def MathExpression(act):
 
 def String(act):
 	s = ""
-	if TakeNext('\"'):															
-		while not TakeString("\""):
-			if Look() == '\0': Error("unexpected EOF")
-			if TakeString("\\n"): s += '\n'
-			else: s += Take()
-	elif TakeString("str("):												
-		s = str(MathExpression(act))
-		if not TakeNext(')'): Error("missing ')'")
-	elif TakeString("std::input()"):
-		if act[0]: s = input()
-	else: 
-		ident = TakeNextAlNum()
-		if ident in variable and variable[ident][0] == 's':	s = variable[ident][1]
-		else: Error("not a string")
+	s = ReturnPackages(act)
+
+	if s == "":
+		if TakeNext('\"'):															
+			while not TakeString("\""):
+				if Look() == '\0': Error("unexpected EOF")
+				if TakeString("\\n"): s += '\n'
+				else: s += Take()
+		else: 
+			ident = TakeNextAlNum()
+			if ident in variable and variable[ident][0] == 's':	s = variable[ident][1]
+			else: Error("not a string")
 	return s
 
 def StringExpression(act):
@@ -119,8 +119,8 @@ def StringExpression(act):
 	return s
 
 def Expression(act):
-	global pc; copypc = pc; ident = TakeNextAlNum(); pc = copypc			
-	if Next() == '\"' or ident == "str" or ident == "std::input" or (ident in variable and variable[ident][0] == 's'):
+	global pc; copypc = pc; ident = TakeNextAlNum(); pc = copypc
+	if Next() == '\"' or ident == "std::input" or ident == "str" or (ident in variable and variable[ident][0] == 's'):
 		return ('s', StringExpression(act))
 	else: return ('i', MathExpression(act))
 
@@ -152,7 +152,6 @@ def DoVoidDef():
 
 def DoAssign(act):																					
 	ident = TakeNextAlNum()
-	print(ident)
 	if not TakeNext('=') or ident == "": Error("unknown statement")
 	e = Expression(act)
 	if act[0] or ident not in variable: variable[ident] = e		
@@ -166,14 +165,14 @@ def DoImport(act):
         if act[0]: packages.append(e[1]);
         if not TakeNext(','): return True
 		
-def Statement(act):
-	if RunPackages(act): return
+def Statement(act): 
+	if VoidPackages(act): return
 	elif TakeString("if"): DoIfElse(act)
 	elif TakeString("while"): DoWhile(act)
 	elif TakeString("break"): DoBreak(act) 
-	elif TakeString("goto"): DoGoTo(act)
+	elif TakeString("goto >> "): DoGoTo(act)
 	elif TakeString("void"): DoVoidDef()
-	elif TakeString("using"): DoImport()
+	elif TakeString("using"): DoImport(act)
 	else: DoAssign(act)	
 
 def Block(act):
@@ -189,29 +188,48 @@ def Error(text):
 	s = source[:pc].rfind("\n") + 1; e = source.find("\n", pc)
 	print("\nERROR: " + text + " in line " + str(source[:pc].count("\n") + 1) + ": '" + source[s:pc] + "_" + source[pc:e] + "'\n")
 	exit(1)
+	
 
 ########## Packages ##########
 
-def RunPackages(act):
+def VoidPackages(act):
 	if TakeString("std::printf >> "):
 		if "std" in packages:
 			while True:																		
 				e = Expression(act)
-				if act[0]: print(e[1], end="");
+				if act[0]: print(codecs.decode(e[1], 'unicode_escape'), end="")
 				if not TakeNext(','): return True
 		else:
 			Error("package 'std' not imported")
-		
+	elif TakeString("time::sleep >> "):
+		if "std::time" in packages:
+			while True:																		
+				e = Expression(act)
+				if act[0]: time.sleep(int(e[1]))
+				if not TakeNext(','): return True
+		else:
+			Error("package 'std::time' not imported")
 	else:
 		return False
 
+def ReturnPackages(act):
+	if TakeString("str("):	
+		if not TakeNext(')'): Error("missing ')'")											
+		return str(MathExpression(act))
+	elif TakeString("std::input()"):
+		if act[0]: return input()
+	else:
+		return ""
+
 ##############################
 
-pc = 0; variable = {}; packages = []								
+pc = 0
+variable = {}
+packages = []
 
-if len(sys.argv) < 2: print('USAGE: int.py <sourcefile>'); exit(1)
+if len(sys.argv) < 2: print('USAGE: python Astro.py <sourcefile>'); exit(1)
 try: f = open(sys.argv[1], 'r')																				
 except: print("ERROR: Can't find source file \'" + sys.argv[1] + "\'."); exit(1)
-source = f.read() + '\0'; f.close()																			
+source = f.read() + '\0'; f.close()																
 
 Program()
