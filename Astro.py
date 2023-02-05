@@ -1,6 +1,7 @@
 import sys
 import time
 import codecs
+import random
 
 def Look():							
 	global pc						
@@ -107,6 +108,9 @@ def String(act):
 				if Look() == '\0': Error("unexpected EOF")
 				if TakeString("\\n"): s += '\n'
 				else: s += Take()
+		elif TakeString("str("):
+			s = str(MathExpression(act))
+			if not TakeNext(')'): Error("missing ')'")
 		else: 
 			ident = TakeNextAlNum()
 			if ident in variable and variable[ident][0] == 's':	s = variable[ident][1]
@@ -197,7 +201,7 @@ def VoidPackages(act):
 		if "std" in packages:
 			while True:																		
 				e = Expression(act)
-				if act[0]: print(codecs.decode(e[1], 'unicode_escape'), end="")
+				if act[0]: print(codecs.decode(str(e[1]), 'unicode_escape'), end="")
 				if not TakeNext(','): return True
 		else:
 			Error("package 'std' not imported")
@@ -213,11 +217,11 @@ def VoidPackages(act):
 		return False
 
 def ReturnPackages(act):
-	if TakeString("str("):	
-		if not TakeNext(')'): Error("missing ')'")											
-		return str(MathExpression(act))
-	elif TakeString("std::input()"):
-		if act[0]: return input()
+	if TakeString("std::input()"):
+		if "std" in packages:
+			if act[0]: return input()
+		else:
+			Error("package 'std' not imported")
 	else:
 		return ""
 
